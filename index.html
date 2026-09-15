@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ペット自動撮影カメラ</title>
+    <title>ペット自動撮影カメラ (Googleドライブ保存)</title>
     <style>
         body {
             font-family: 'Helvetica Neue', Arial, sans-serif;
@@ -17,6 +17,8 @@
             font-weight: bold;
             color: #e53e3e;
             margin: 10px 0;
+            padding: 10px;
+            border-radius: 8px;
         }
         .camera-box {
             position: relative;
@@ -31,7 +33,6 @@
             width: 100%;
             max-width: 500px;
             height: auto;
-            transform: scaleX(-1); /* 自撮り風（鏡）にする場合。不要なら削除してください */
         }
         .photo-container {
             margin-top: 20px;
@@ -51,73 +52,83 @@
     <h1>🐾 ペット自動撮影カメラ 🐾</h1>
     <p id="status">カメラの権限を許可してください...</p>
 
-    <!-- カメラの生映像を表示するエリア -->
     <div class="camera-box">
         <video id="video" autoplay playsinline></video>
     </div>
 
-    <!-- 撮影された写真が表示されるエリア -->
     <div class="photo-container">
         <canvas id="canvas"></canvas>
         <div id="result-label"></div>
-        <img id="photo" alt="ここに撮影された写真が表示されます" />
+        <img id="photo" alt="" />
     </div>
 
     <script>
+        // 【重要】ここにステップ1-9でコピーした「ウェブアプリのURL」を貼り付けてください
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbx2eNns_YtW-vNgUHHpyu1DNb9BTtI6KjZM6T8_thCnXN8t12hxL3TX-tlYmArxKfFH/exec";
+
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
         const photo = document.getElementById('photo');
         const statusText = document.getElementById('status');
         const resultLabel = document.getElementById('result-label');
 
-        // ページ読み込み時に自動でカメラアクセスを開始
         window.addEventListener('DOMContentLoaded', async () => {
             try {
-                // カメラの権限を要求（背面カメラを優先する場合は 'environment'）
                 const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: 'user' }, 
+                    video: { facingMode: 'environment' }, 
                     audio: false 
                 });
                 
-                // 映像をvideoタグにセット
                 video.srcObject = stream;
-                statusText.innerText = "📸 許可されました！1秒後に撮影します...";
+                statusText.innerText = "📸 許可されました！1秒後に撮影してGoogleドライブに送ります...";
                 statusText.style.color = "#3182ce";
 
-                // OK（許可）が出てから「1秒後」に撮影を実行
                 setTimeout(() => {
-                    takePhoto();
+                    takePhotoAndUpload();
                 }, 1000);
 
             } catch (err) {
-                console.error("カメラのアクセスに失敗しました:", err);
-                statusText.innerText = "❌ カメラの権限が拒否されたか、端末にカメラがありません。";
-                statusText.style.color = "#e53e3e";
+                console.error(err);
+                statusText.innerText = "❌ カメラのアクセスに失敗しました。";
             }
         });
 
-        // 写真を撮影する関数
-        function takePhoto() {
+        async function takePhotoAndUpload() {
             const ctx = canvas.getContext('2d');
-            
-            // ビデオのサイズに合わせてキャンバスの大きさを設定
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
-            
-            // 鏡面反転している場合は、写真も反転させて保存する設定
-            ctx.translate(canvas.width, 0);
-            ctx.scale(-1, 1);
-
-            // 現在のビデオのフレームをキャンバスに描写
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             
-            // キャンバスから画像URL（base64）を生成してimgタグに反映
-            const data = canvas.toDataURL('image/png');
-            photo.src = data;
+            const dataDataURL = canvas.toDataURL('image/png');
+            photo.src = dataDataURL;
 
-            statusText.innerText = "✨ 撮影完了しました！ ✨";
-            statusText.style.color = "#38a169";
-            resultLabel.innerHTML = "<h3>パシャリ！📸 撮影された写真：</h3>";
+            statusText.innerText = "⏳ データをGoogleドライブにアップロード中...";
+            statusText.style.color = "#d69e2e";
+
+            try {
+                // Google Apps Scriptへ非同期で写真データを送信
+                const response = await fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({ image: dataDataURL })
+                });
+
+                const result = await response.json();
+
+                if (result.status === "success") {
+                    statusText.innerText = "☁️ Googleドライブへの自動保存が完了しました！";
+                    statusText.style.color = "#38a169";
+                    resultLabel.innerHTML = "<h3>パシャリ！📸 保存された写真：</h3>";
+                } else {
+                    throw new Error(result.message);
+                }
+
+            } catch (err) {
+                console.error(err);
+                statusText.innerText = "❌ Googleドライブへの保存に失敗しました。設定を確認してください。";
+                statusText.style.color = "#e53e3e";
+            }
         }
     </script>
 </body>
