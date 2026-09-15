@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ペット自動撮影カメラ</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            text-align: center;
+            background-color: #f7f9fa;
+            color: #333;
+            padding: 20px;
+        }
+        h1 { font-size: 1.5rem; color: #4a5568; }
+        #status {
+            font-weight: bold;
+            color: #e53e3e;
+            margin: 10px 0;
+        }
+        .camera-box {
+            position: relative;
+            display: inline-block;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        video {
+            display: block;
+            width: 100%;
+            max-width: 500px;
+            height: auto;
+            transform: scaleX(-1); /* 自撮り風（鏡）にする場合。不要なら削除してください */
+        }
+        .photo-container {
+            margin-top: 20px;
+        }
+        canvas { display: none; }
+        img {
+            max-width: 100%;
+            width: 500px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            border: 4px solid #fff;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🐾 ペット自動撮影カメラ 🐾</h1>
+    <p id="status">カメラの権限を許可してください...</p>
+
+    <!-- カメラの生映像を表示するエリア -->
+    <div class="camera-box">
+        <video id="video" autoplay playsinline></video>
+    </div>
+
+    <!-- 撮影された写真が表示されるエリア -->
+    <div class="photo-container">
+        <canvas id="canvas"></canvas>
+        <div id="result-label"></div>
+        <img id="photo" alt="ここに撮影された写真が表示されます" />
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const photo = document.getElementById('photo');
+        const statusText = document.getElementById('status');
+        const resultLabel = document.getElementById('result-label');
+
+        // ページ読み込み時に自動でカメラアクセスを開始
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                // カメラの権限を要求（背面カメラを優先する場合は 'environment'）
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'user' }, 
+                    audio: false 
+                });
+                
+                // 映像をvideoタグにセット
+                video.srcObject = stream;
+                statusText.innerText = "📸 許可されました！1秒後に撮影します...";
+                statusText.style.color = "#3182ce";
+
+                // OK（許可）が出てから「1秒後」に撮影を実行
+                setTimeout(() => {
+                    takePhoto();
+                }, 1000);
+
+            } catch (err) {
+                console.error("カメラのアクセスに失敗しました:", err);
+                statusText.innerText = "❌ カメラの権限が拒否されたか、端末にカメラがありません。";
+                statusText.style.color = "#e53e3e";
+            }
+        });
+
+        // 写真を撮影する関数
+        function takePhoto() {
+            const ctx = canvas.getContext('2d');
+            
+            // ビデオのサイズに合わせてキャンバスの大きさを設定
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            // 鏡面反転している場合は、写真も反転させて保存する設定
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
+
+            // 現在のビデオのフレームをキャンバスに描写
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // キャンバスから画像URL（base64）を生成してimgタグに反映
+            const data = canvas.toDataURL('image/png');
+            photo.src = data;
+
+            statusText.innerText = "✨ 撮影完了しました！ ✨";
+            statusText.style.color = "#38a169";
+            resultLabel.innerHTML = "<h3>パシャリ！📸 撮影された写真：</h3>";
+        }
+    </script>
+</body>
+</html>
